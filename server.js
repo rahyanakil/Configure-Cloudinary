@@ -1,22 +1,35 @@
-const express = require('express');
-const multer = require('multer'); // Middleware for handling file uploads
-const cloudinary = require('./cloudinaryConfig'); // Import the Cloudinary config
 require('dotenv').config();
+const express = require('express');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cors = require('cors');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' }); // Temporary storage before uploading to Cloudinary
+app.use(cors());
 
-// API endpoint to upload an image
-app.post('/upload', upload.single('image'), async (req, res) => {
-  try {
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'my_uploads', // Optional: Specify a folder in Cloudinary
-    });
-
-    res.json({ message: 'Upload successful', url: result.secure_url });
-  } catch (error) {
-    res.status(500).json({ message: 'Upload failed', error });
-  }
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Configure Multer Storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'uploads',
+    format: async (req, file) => 'jpg',
+  },
+});
+
+const upload = multer({ storage });
+
+// API Route for Image Upload
+app.post('/upload', upload.single('image'), (req, res) => {
+  res.json({ url: req.file.path });
+});
+
+// Start Server
 app.listen(3000, () => console.log('Server running on port 3000'));
